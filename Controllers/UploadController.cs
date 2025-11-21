@@ -96,11 +96,15 @@ public class UploadController : ControllerBase
                     await file.CopyToAsync(stream);
                 }
 
-                // Create image data
+                // Create image data with full URL
+                var scheme = Request.Scheme;
+                var host = Request.Host.Value;
+                var imageUrl = $"{scheme}://{host}/uploads/images/{userId}/{fileName}";
+                
                 var imageData = new ImageData
                 {
                     Id = imageId,
-                    Src = $"/uploads/images/{userId}/{fileName}",
+                    Src = imageUrl,
                     Alt = file.FileName,
                     Type = file.ContentType
                 };
