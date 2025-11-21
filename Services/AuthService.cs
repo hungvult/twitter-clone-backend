@@ -54,7 +54,7 @@ public class AuthService : IAuthService
         var name = jwtToken.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
         var picture = jwtToken.Claims.FirstOrDefault(c => c.Type == "picture")?.Value;
 
-        Console.WriteLine($"[AuthService] Extracted email: {email}, name: {name}");
+        Console.WriteLine($"[AuthService] Extracted email: {email}, name: {name}, picture: {picture}");
 
         if (string.IsNullOrEmpty(email))
         {
@@ -96,17 +96,45 @@ public class AuthService : IAuthService
             _context.UserStats.Add(userStats);
             await _context.SaveChangesAsync();
         }
+        else
+        {
+            // Update existing user's profile info from Google (name and photo might have changed)
+            bool needsUpdate = false;
+            
+            if (!string.IsNullOrEmpty(name) && user.Name != name)
+            {
+                user.Name = name;
+                needsUpdate = true;
+            }
+            
+            if (!string.IsNullOrEmpty(picture) && user.PhotoURL != picture)
+            {
+                user.PhotoURL = picture;
+                needsUpdate = true;
+                Console.WriteLine($"[AuthService] Updating user photo URL to: {picture}");
+            }
+            
+            if (needsUpdate)
+            {
+                user.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
+        }
 
         // Generate JWT tokens
         var accessToken = GenerateAccessToken(user);
         var refreshToken = GenerateRefreshToken();
+        
+        // Calculate token expiry (60 minutes from now)
+        var expiresAt = DateTime.UtcNow.AddMinutes(60).ToString("o");
 
         var userDto = _mapper.Map<UserDto>(user);
 
         return new AuthResponse
         {
-            AccessToken = accessToken,
+            Token = accessToken,
             RefreshToken = refreshToken,
+            ExpiresAt = expiresAt,
             User = userDto
         };
     }

@@ -8,8 +8,9 @@ public class GoogleAuthRequest
 
 public class AuthResponse
 {
-    public string AccessToken { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
     public string RefreshToken { get; set; } = string.Empty;
+    public string ExpiresAt { get; set; } = string.Empty;
     public UserDto User { get; set; } = null!;
 }
 
