@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TwitterClone.Api.Models.DTOs;
@@ -103,14 +104,23 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var userId = User.FindFirst("sub")?.Value;
+            // Try different claim types to find user ID
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+                        User.FindFirst("sub")?.Value ??
+                        User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
+            
             if (string.IsNullOrEmpty(userId))
+            {
+                Console.WriteLine("[AuthController] No user ID found in token claims");
+                Console.WriteLine($"[AuthController] Available claims: {string.Join(", ", User.Claims.Select(c => c.Type))}");
                 return Unauthorized(new ErrorResponse
                 {
                     Code = "INVALID_TOKEN",
                     Message = "User ID not found in token"
                 });
+            }
 
+            Console.WriteLine($"[AuthController] Found user ID: {userId}");
             var user = await _authService.GetUserByIdAsync(userId);
             if (user == null)
                 return NotFound(new ErrorResponse
@@ -123,6 +133,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[AuthController] GetCurrentUser error: {ex.Message}");
             return StatusCode(500, new ErrorResponse
             {
                 Code = "GET_USER_ERROR",
