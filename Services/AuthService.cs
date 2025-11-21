@@ -100,13 +100,17 @@ public class AuthService : IAuthService
         // Generate JWT tokens
         var accessToken = GenerateAccessToken(user);
         var refreshToken = GenerateRefreshToken();
+        
+        // Calculate token expiry (60 minutes from now)
+        var expiresAt = DateTime.UtcNow.AddMinutes(60).ToString("o");
 
         var userDto = _mapper.Map<UserDto>(user);
 
         return new AuthResponse
         {
-            AccessToken = accessToken,
+            Token = accessToken,
             RefreshToken = refreshToken,
+            ExpiresAt = expiresAt,
             User = userDto
         };
     }
