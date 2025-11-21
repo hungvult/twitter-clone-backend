@@ -15,6 +15,7 @@ public interface IAuthService
 {
     Task<AuthResponse> AuthenticateWithGoogleAsync(string idToken);
     Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
+    Task<UserDto?> GetUserByIdAsync(string userId);
 }
 
 public class AuthService : IAuthService
@@ -211,5 +212,14 @@ public class AuthService : IAuthService
     {
         // Generate a simple refresh token (in production, store this in database)
         return Guid.NewGuid().ToString("N");
+    }
+
+    public async Task<UserDto?> GetUserByIdAsync(string userId)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+            return null;
+
+        return _mapper.Map<UserDto>(user);
     }
 }

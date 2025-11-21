@@ -43,6 +43,34 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpPost("register")]
+    public async Task<ActionResult<AuthResponse>> Register([FromBody] GoogleAuthRequest request)
+    {
+        // Register endpoint is the same as Google auth (creates user if not exists)
+        try
+        {
+            var response = await _authService.AuthenticateWithGoogleAsync(request.IdToken);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ErrorResponse
+            {
+                Code = "INVALID_TOKEN",
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ErrorResponse
+            {
+                Code = "AUTH_ERROR",
+                Message = "Authentication failed",
+                Details = ex.Message
+            });
+        }
+    }
+
     [HttpPost("refresh")]
     public async Task<ActionResult<AuthResponse>> RefreshToken([FromBody] string refreshToken)
     {
@@ -70,10 +98,53 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<UserDto>> GetCurrentUser()
+    {
+        try
+        {
+            var userId = User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new ErrorResponse
+                {
+                    Code = "INVALID_TOKEN",
+                    Message = "User ID not found in token"
+                });
+
+            var user = await _authService.GetUserByIdAsync(userId);
+            if (user == null)
+                return NotFound(new ErrorResponse
+                {
+                    Code = "USER_NOT_FOUND",
+                    Message = "User not found"
+                });
+
+            return Ok(user);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ErrorResponse
+            {
+                Code = "GET_USER_ERROR",
+                Message = "Failed to get current user",
+                Details = ex.Message
+            });
+        }
+    }
+
+    [Authorize]
     [HttpPost("signout")]
     public new IActionResult SignOut()
     {
         // In a production app, you would invalidate the refresh token here
         return Ok(new { message = "Signed out successfully" });
+    }
+
+    [Authorize]
+    [HttpPost("logout")]
+    public IActionResult Logout()
+    {
+        // Same as signout
+        return Ok(new { message = "Logged out successfully" });
     }
 }
