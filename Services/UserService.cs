@@ -62,14 +62,24 @@ public class UserService : IUserService
         if (!string.IsNullOrEmpty(request.Name))
             user.Name = request.Name;
         
-        user.Bio = request.Bio;
-        user.Website = request.Website;
-        user.Location = request.Location;
+        // Only update fields that are provided (not null)
+        // Empty strings are allowed to clear fields
+        if (request.Bio != null)
+            user.Bio = string.IsNullOrWhiteSpace(request.Bio) ? null : request.Bio;
+        
+        if (request.Website != null)
+            user.Website = string.IsNullOrWhiteSpace(request.Website) ? null : request.Website;
+        
+        if (request.Location != null)
+            user.Location = string.IsNullOrWhiteSpace(request.Location) ? null : request.Location;
         
         if (!string.IsNullOrEmpty(request.PhotoURL))
             user.PhotoURL = request.PhotoURL;
         
-        user.CoverPhotoURL = request.CoverPhotoURL;
+        // CoverPhotoURL can be null to remove cover photo
+        if (request.CoverPhotoURL != null)
+            user.CoverPhotoURL = string.IsNullOrWhiteSpace(request.CoverPhotoURL) ? null : request.CoverPhotoURL;
+        
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
