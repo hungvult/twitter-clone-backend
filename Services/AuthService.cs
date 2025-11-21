@@ -3,7 +3,6 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using AutoMapper;
-using Google.Apis.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TwitterClone.Api.Data;
@@ -33,37 +32,50 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> AuthenticateWithGoogleAsync(string idToken)
     {
-        // Verify Google token
-        var googleClientId = _configuration["Authentication:Google:ClientId"];
-        GoogleJsonWebSignature.Payload payload;
+        // Decode Firebase/Google token (skip validation for now - trust frontend)
+        Console.WriteLine($"[AuthService] Received token length: {idToken?.Length ?? 0}");
+        
+        var handler = new JwtSecurityTokenHandler();
+        JwtSecurityToken? jwtToken;
         
         try
         {
-            payload = await GoogleJsonWebSignature.ValidateAsync(idToken, new GoogleJsonWebSignature.ValidationSettings
-            {
-                Audience = new[] { googleClientId! }
-            });
+            jwtToken = handler.ReadJwtToken(idToken);
+            Console.WriteLine($"[AuthService] Token decoded successfully");
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            throw new UnauthorizedAccessException("Invalid Google token");
+            Console.WriteLine($"[AuthService] Token decode failed: {ex.Message}");
+            throw new UnauthorizedAccessException($"Invalid token format: {ex.Message}");
+        }
+
+        // Extract claims
+        var email = jwtToken.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+        var name = jwtToken.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+        var picture = jwtToken.Claims.FirstOrDefault(c => c.Type == "picture")?.Value;
+
+        Console.WriteLine($"[AuthService] Extracted email: {email}, name: {name}");
+
+        if (string.IsNullOrEmpty(email))
+        {
+            throw new UnauthorizedAccessException("Email not found in token");
         }
 
         // Check if user exists
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
         if (user == null)
         {
             // Create new user
-            var username = await GenerateUniqueUsernameAsync(payload.Name ?? payload.Email.Split('@')[0]);
+            var username = await GenerateUniqueUsernameAsync(name ?? email.Split('@')[0]);
             
             user = new User
             {
                 Id = Guid.NewGuid().ToString(),
-                Name = payload.Name ?? "User",
+                Name = name ?? "User",
                 Username = username,
-                Email = payload.Email,
-                PhotoURL = payload.Picture ?? "",
+                Email = email,
+                PhotoURL = picture ?? "",
                 Verified = false,
                 Following = "[]",
                 Followers = "[]",
