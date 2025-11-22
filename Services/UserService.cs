@@ -1,8 +1,10 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AutoMapper;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using TwitterClone.Api.Data;
+using TwitterClone.Api.Hubs;
 using TwitterClone.Api.Models.DTOs;
 using TwitterClone.Api.Models.Entities;
 
@@ -29,11 +31,13 @@ public class UserService : IUserService
 {
     private readonly ApplicationDbContext _context;
     private readonly IMapper _mapper;
+    private readonly IHubContext<UserHub> _userHubContext;
 
-    public UserService(ApplicationDbContext context, IMapper mapper)
+    public UserService(ApplicationDbContext context, IMapper mapper, IHubContext<UserHub> userHubContext)
     {
         _context = context;
         _mapper = mapper;
+        _userHubContext = userHubContext;
     }
 
     public async Task<UserDto?> GetUserByIdAsync(string id)
@@ -83,7 +87,22 @@ public class UserService : IUserService
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        return _mapper.Map<UserDto>(user);
+        
+        var userDto = _mapper.Map<UserDto>(user);
+        
+        // Broadcast user update via SignalR
+        try
+        {
+            await _userHubContext.Clients.Group($"user_{userId}")
+                .SendAsync("UserUpdated", userDto);
+            Console.WriteLine($"[UserService] Broadcasted profile update for user {userId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UserService] SignalR broadcast failed: {ex.Message}");
+        }
+        
+        return userDto;
     }
 
     public async Task<UserDto> UpdateUsernameAsync(string userId, string newUsername)
