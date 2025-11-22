@@ -21,4 +21,11 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="TwitterClone.Api.Tests\**" />
+    <Content Remove="TwitterClone.Api.Tests\**" />
+    <EmbeddedResource Remove="TwitterClone.Api.Tests\**" />
+    <None Remove="TwitterClone.Api.Tests\**" />
+  </ItemGroup>
+
 </Project>
