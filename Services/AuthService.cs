@@ -142,7 +142,6 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse?> RefreshTokenAsync(string refreshToken)
     {
-        // TODO: Implement refresh token validation from database
         // For now, return null
         await Task.CompletedTask;
         return null;
